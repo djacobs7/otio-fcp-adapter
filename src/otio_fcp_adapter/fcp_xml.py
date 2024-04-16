@@ -745,20 +745,11 @@ class FCP7XMLParser:
         md_dict = _xml_tree_to_dict(track_element, timeline_item_tags)
         track_metadata = {META_NAMESPACE: md_dict} if md_dict else None
 
-        if track_metadata:
-            track_name = (track_metadata.get("fcp_xml", {}).
-                          get("@MZ.TrackName",
-                              track_name))
         track = schema.Track(
             name=track_name,
             kind=track_kind,
             metadata=track_metadata,
         )
-
-        # set enabled status
-        enabled_property = track_element.find("./enabled")
-        if enabled_property is not None:
-            track.enabled = _bool_value(enabled_property)
 
         # Iterate through and parse track items
         track_rate = _rate_from_context(local_context)
@@ -1058,11 +1049,6 @@ class FCP7XMLParser:
         markers = markers_from_element(clipitem_element, context)
         item.markers.extend(markers)
 
-        # set enabled status
-        enabled_property = clipitem_element.find("./enabled")
-        if enabled_property is not None:
-            item.enabled = _bool_value(enabled_property)
-
         # Find the in time (source time relative to media start)
         clip_rate = _rate_from_context(local_context)
         in_value = float(clipitem_element.find('./in').text)
@@ -1338,6 +1324,7 @@ def _build_timecode(time, fps, drop_frame=False, additional_metadata=None):
     :return: The ``timecode`` element.
     """
 
+    print(["_build_timecode", time] )
     if additional_metadata:
         # Only allow legal child items for the timecode element
         filtered = {
@@ -1357,6 +1344,8 @@ def _build_timecode(time, fps, drop_frame=False, additional_metadata=None):
 
     # Get the time values
     tc_time = opentime.RationalTime(time.value_rescaled_to(fps), tc_fps)
+
+    
     tc_string = opentime.to_timecode(tc_time, tc_fps, drop_frame)
 
     _append_new_sub_element(tc_element, "string", text=tc_string)
@@ -1464,9 +1453,9 @@ def _build_empty_file(media_ref, parent_range, br_map):
 
 @_backreference_build('file')
 def _build_file(media_reference, br_map):
+    print(["_build_file", media_reference])
     file_e = _element_with_item_metadata("file", media_reference)
 
-    available_range = media_reference.available_range
 
     # If the media reference is of one of the supported types, populate
     # the appropriate source info element
@@ -1492,21 +1481,25 @@ def _build_file(media_reference, br_map):
         text=(media_reference.name or fallback_file_name),
     )
 
-    # timing info
-    file_e.append(_build_rate(available_range.start_time.rate))
-    _append_new_sub_element(
-        file_e, 'duration',
-        text=f'{available_range.duration.value:.0f}'
-    )
 
-    # timecode
-    ref_tc_metadata = media_reference.metadata.get(META_NAMESPACE, {}).get(
-        "timecode"
-    )
-    tc_element = _build_timecode_from_metadata(
-        available_range.start_time, ref_tc_metadata
-    )
-    file_e.append(tc_element)
+    if media_reference.available_range is not None:
+        available_range = media_reference.available_range
+        # timing info
+        file_e.append(_build_rate(available_range.start_time.rate))
+        _append_new_sub_element(
+            file_e, 'duration',
+            text=f'{available_range.duration.value:.0f}'
+        )
+
+        # timecode
+        ref_tc_metadata = media_reference.metadata.get(META_NAMESPACE, {}).get(
+            "timecode"
+        )
+
+        tc_element = _build_timecode_from_metadata(
+            available_range.start_time, ref_tc_metadata
+        )
+        file_e.append(tc_element)
 
     # we need to flag the file reference with the content types, otherwise it
     # will not get recognized
@@ -1520,9 +1513,12 @@ def _build_file(media_reference, br_map):
         if has_video and file_media_e.find("video") is None:
             _append_new_sub_element(file_media_e, "video")
 
+        img_exts = {'.png', '.jpg'}
+        is_image = (os.path.splitext(url_path)[1].lower()  in img_exts)
+
         # TODO: This is assuming all files have an audio track. Not sure what
         # the implications of that are.
-        if file_media_e.find("audio") is None:
+        if not is_image and file_media_e.find("audio") is None:
             _append_new_sub_element(file_media_e, "audio")
 
     return file_e
@@ -1639,6 +1635,8 @@ def _build_clip_item(clip_item, timeline_range, transition_offsets, br_map):
     # otio we could  correctly translate a first-class OTIO generator concept
     # into an equivalent FCP 7 generatoritem or a Premiere Pro style overloaded
     # clipitem.
+
+    print( ["build_clip_item", clip_item, timeline_range])
     is_generator = isinstance(
         clip_item.media_reference, schema.GeneratorReference
     )
@@ -1668,6 +1666,7 @@ def _build_clip_item(clip_item, timeline_range, transition_offsets, br_map):
         name = os.path.basename(url_path)
 
     _append_new_sub_element(clip_item_e, 'name', text=name)
+
 
     if clip_item.media_reference.available_range:
         clip_item_e.append(
@@ -1765,6 +1764,8 @@ def _build_track_item(track, timeline_range, transition_offsets, br_map):
 
 
 def _build_item(item, timeline_range, transition_offsets, br_map):
+    print("_build_item: ")
+    print(item) 
     if isinstance(item, schema.Transition):
         return _build_transition_item(
             item,
@@ -1808,6 +1809,8 @@ def _build_top_level_track(track, track_rate, br_map):
         if isinstance(item, schema.Gap):
             continue
 
+        print("_build_top_level_track: ITEM")
+        print( item)
         transition_offsets = [None, None]
         previous_item = track[n - 1] if n > 0 else None
         next_item = track[n + 1] if n + 1 < len(track) else None
@@ -1867,6 +1870,8 @@ def _build_timecode_from_metadata(time, tc_metadata=None):
 
     :return: A timecode element.
     """
+
+    print([ "_build_timecode_from_metadata", time])
     if tc_metadata is None:
         tc_metadata = {}
 
