@@ -1464,9 +1464,10 @@ def _build_empty_file(media_ref, parent_range, br_map):
 
 @_backreference_build('file')
 def _build_file(media_reference, br_map):
+
+    print(["_build_file", media_reference])
     file_e = _element_with_item_metadata("file", media_reference)
 
-    available_range = media_reference.available_range
 
     # If the media reference is of one of the supported types, populate
     # the appropriate source info element
@@ -1492,21 +1493,25 @@ def _build_file(media_reference, br_map):
         text=(media_reference.name or fallback_file_name),
     )
 
-    # timing info
-    file_e.append(_build_rate(available_range.start_time.rate))
-    _append_new_sub_element(
-        file_e, 'duration',
-        text=f'{available_range.duration.value:.0f}'
-    )
 
-    # timecode
-    ref_tc_metadata = media_reference.metadata.get(META_NAMESPACE, {}).get(
-        "timecode"
-    )
-    tc_element = _build_timecode_from_metadata(
-        available_range.start_time, ref_tc_metadata
-    )
-    file_e.append(tc_element)
+    if media_reference.available_range is not None:
+        available_range = media_reference.available_range
+        # timing info
+        file_e.append(_build_rate(available_range.start_time.rate))
+        _append_new_sub_element(
+            file_e, 'duration',
+            text=f'{available_range.duration.value:.0f}'
+        )
+
+        # timecode
+        ref_tc_metadata = media_reference.metadata.get(META_NAMESPACE, {}).get(
+            "timecode"
+        )
+
+        tc_element = _build_timecode_from_metadata(
+            available_range.start_time, ref_tc_metadata
+        )
+        file_e.append(tc_element)
 
     # we need to flag the file reference with the content types, otherwise it
     # will not get recognized
