@@ -1898,6 +1898,26 @@ def _build_timecode_from_metadata(time, tc_metadata=None):
     )
 
 
+def _build_bin( serializable_collection, br_map ):
+    
+
+
+    element = _element_with_item_metadata("bin", serializable_collection)
+
+    _append_new_sub_element(element, 'name', text=serializable_collection.name)
+    labels = _append_new_sub_element(element, 'labels', text=serializable_collection.name)
+    _append_new_sub_element( labels, 'label2', text="Mango")
+
+    children = _append_new_sub_element(element, 'children')
+
+
+    collection_xml = _build_collection(serializable_collection, br_map)
+    for item in collection_xml:
+        children.append(item)
+
+    return element
+
+
 @_backreference_build('sequence')
 def _build_sequence_for_timeline(timeline, timeline_range, br_map):
     sequence_e = _element_with_item_metadata("sequence", timeline)
@@ -1971,8 +1991,21 @@ def _add_stack_elements_to_sequence(stack, sequence_e, timeline_range, br_map):
 
 
 def _build_collection(collection, br_map):
-    tracks = []
+    children = []
+
+
     for item in collection:
+
+        if isinstance( item, schema.SerializableCollection):
+            children.append( _build_bin(item, br_map))
+
+        if isinstance( item, schema.Clip):
+            transition_offsets= [None, None]
+
+            timeline_range = item.source_range
+
+            children.append( _build_item(item, timeline_range, transition_offsets, br_map))
+
         if not isinstance(item, schema.Timeline):
             continue
 
@@ -1980,11 +2013,12 @@ def _build_collection(collection, br_map):
             start_time=item.global_start_time,
             duration=item.duration()
         )
-        tracks.append(
+        children.append(
             _build_sequence_for_timeline(item, timeline_range, br_map)
         )
 
-    return tracks
+
+    return children
 
 
 # --------------------
