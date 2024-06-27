@@ -1861,6 +1861,16 @@ def _build_marker(marker):
         )
     )
 
+    # if marker.comment:
+    #     _append_new_sub_element( 
+    #         marker_e, 'comment', text=marker.comment
+    #     )
+
+    if marker.color:
+        _append_new_sub_element( 
+            marker_e, 'pproColor', text=marker.color
+        )
+
     return marker_e
 
 
