@@ -1978,7 +1978,27 @@ def _add_stack_elements_to_sequence(stack, sequence_e, timeline_range, br_map):
 
     # This is a fix for Davinci Resolve. After the "video" tag, it expects
     # a <format> tag, even if empty. See issue 839
-    _get_or_create_subelement(video_e, "format")
+    format_e = _get_or_create_subelement(video_e, "format")
+
+
+    # DJ ADDED
+    format_data = stack.metadata.get('fcp')
+    print(stack.name)
+    print(stack.metadata)
+    if format_data:
+        samplecharacteristics_e = _append_new_sub_element( format_e, 'samplecharacteristics')
+
+        if format_data.get('width'):
+            _append_new_sub_element(samplecharacteristics_e, 'width', text=str(format_data.get('width')))        
+        if format_data.get('height'):
+            _append_new_sub_element(samplecharacteristics_e, 'height', text=str(format_data.get('height')))
+
+        if format_data.get('pixelAspectRatio'):
+            par = str(format_data.get('pixelAspectRatio'))
+            if ( par == "1:1"):
+                par = "square"
+            _append_new_sub_element(samplecharacteristics_e, 'pixelaspectratio', text=par)
+
 
     # XXX: Due to the way that backreferences are created later on, the XML
     #      is assumed to have its video tracks serialized before its audio
@@ -2059,6 +2079,7 @@ def write_to_string(input_otio):
     children_e = _append_new_sub_element(project_e, 'children')
 
     br_map = collections.defaultdict(dict)
+
 
     if isinstance(input_otio, schema.Timeline):
         timeline_range = opentime.TimeRange(
