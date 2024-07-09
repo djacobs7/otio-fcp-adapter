@@ -1530,8 +1530,19 @@ def _build_file(media_reference, br_map):
 
         # TODO: This is assuming all files have an audio track. Not sure what
         # the implications of that are.
-        if not is_image and file_media_e.find("audio") is None:
-            _append_new_sub_element(file_media_e, "audio")
+
+
+        # DJ MOD - GET THE NUMBER OF STREAMS RIGHT
+        audio_streams = media_reference.metadata.get("fcp", {}).get("audioStreams", [])
+        if len(audio_streams) > 0:
+            for audio_stream in audio_streams:
+                if 'channels' in audio_stream:
+                    num_channels=audio_stream['channels']
+                    for channel in range(num_channels):
+                        audio_e = _append_new_sub_element(file_media_e, "audio")
+        else: 
+            if not is_image and file_media_e.find("audio") is None:
+                _append_new_sub_element(file_media_e, "audio")
 
     return file_e
 
